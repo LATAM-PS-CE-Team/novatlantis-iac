@@ -135,8 +135,14 @@ resource "google_cloud_run_v2_service" "microservices" {
   }
 }
 
+variable "enable_public_invoker_iam" {
+  type        = bool
+  default     = false
+  description = "Aplica roles/run.invoker para allUsers via Terraform (ou via gcloud run deploy --no-invoker-iam-check)"
+}
+
 resource "google_cloud_run_v2_service_iam_member" "public_invoker" {
-  for_each = google_cloud_run_v2_service.microservices
+  for_each = var.enable_public_invoker_iam ? google_cloud_run_v2_service.microservices : {}
   project  = var.project_id
   location = var.region
   name     = each.value.name
