@@ -1,15 +1,16 @@
 # ==============================================================================
 # AMBIENTE PROD — REPÚBLICA DIGITAL DE NOVATLANTIS
-# Organização: https://github.com/LATAM-PS-CE-Team
-# Branch Alvo: prod (Exige aprovação explícita de @pedrocalixto via CODEOWNERS)
-# Backend Remoto: gs://novatlantis-tfstate/iac/prod (com State Locking)
+# Organização GitHub: https://github.com/LATAM-PS-CE-Team
+# Branch Alvo: main (Exige aprovação explícita de @pedrocalixto via CODEOWNERS)
+# Projeto GCP Dedicado: novatlantis-prd
+# Backend Remoto: gs://novatlantis-prd-tfstate/iac/prod (com State Locking)
 # ==============================================================================
 
 terraform {
   required_version = ">= 1.6.0"
 
   backend "gcs" {
-    bucket = "novatlantis-tfstate"
+    bucket = "novatlantis-prd-tfstate"
     prefix = "iac/prod"
   }
 
@@ -23,7 +24,7 @@ terraform {
 
 variable "project_id" {
   type    = string
-  default = "novatlantis"
+  default = "novatlantis-prd"
 }
 
 variable "region" {
@@ -61,9 +62,10 @@ module "database_alloydb" {
 }
 
 module "security_iam_secrets" {
-  source     = "../../modules/security-iam-secrets"
-  project_id = var.project_id
-  region     = var.region
+  source       = "../../modules/security-iam-secrets"
+  project_id   = var.project_id
+  region       = var.region
+  github_owner = var.github_owner
 }
 
 module "cloud_run_prod" {
@@ -85,17 +87,19 @@ module "edge_lb_armor" {
   service_names = module.cloud_run_prod.service_names
 }
 
-module "cicd_triggers" {
-  source       = "../../modules/cicd-triggers"
-  project_id   = var.project_id
-  region       = var.region
-  github_owner = var.github_owner
-  cicd_sa_id   = "projects/${var.project_id}/serviceAccounts/novatlantis-cicd-deployer@${var.project_id}.iam.gserviceaccount.com"
+module "cicd_triggers_prod" {
+  source        = "../../modules/cicd-triggers"
+  project_id    = var.project_id
+  region        = var.region
+  environment   = "prod"
+  target_branch = "main"
+  github_owner  = var.github_owner
+  cicd_sa_id    = "projects/${var.project_id}/serviceAccounts/novatlantis-cicd-deployer@${var.project_id}.iam.gserviceaccount.com"
 }
 
 output "prod_service_urls" {
   value       = module.cloud_run_prod.service_urls
-  description = "URLs oficiais do Ambiente PROD dos 8 microsserviços Cloud Run (novatlantis-prod-*)"
+  description = "URLs oficiais do Ambiente PROD dos 8 microsserviços Cloud Run no projeto novatlantis-prd"
 }
 
 output "alloydb_private_ip" {
