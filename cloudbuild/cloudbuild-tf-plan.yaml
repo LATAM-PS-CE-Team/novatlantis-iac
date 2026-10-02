@@ -1,0 +1,53 @@
+# ==============================================================================
+# REPÚBLICA DIGITAL DE NOVATLANTIS — ESTEIRA GITOPS DE VALIDAÇÃO (TERRAFORM PLAN)
+# Repositório: LATAM-PS-CE-Team/novatlantis-iac
+# Acionamento: Pull Request contra 'main' (dev) ou 'prod' (prod)
+# Objetivo: Verificar formatação, validar sintaxe de todos os módulos e gerar o
+#           plano de execução (terraform plan) dos ambientes 'dev' e 'prod'.
+# ==============================================================================
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  # 1. Verifica formatação padronizada em todos os arquivos .tf
+  - id: 'terraform-fmt-check'
+    name: 'hashicorp/terraform:1.8'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        echo "[GITOPS-PR] Verificando formatação do código Terraform (terraform fmt)..."
+        terraform fmt -check -recursive
+
+  # 2. Valida e gera o Plano de Execução do Ambiente DEV (environments/dev)
+  - id: 'terraform-plan-dev'
+    name: 'hashicorp/terraform:1.8'
+    entrypoint: 'sh'
+    waitFor: ['terraform-fmt-check']
+    args:
+      - '-c'
+      - |
+        echo "=================================================================="
+        echo "[GITOPS-PR] Executando 'terraform plan' para AMBIENTE DEV (environments/dev)"
+        echo "=================================================================="
+        cd environments/dev
+        terraform init -input=false
+        terraform validate
+        terraform plan -input=false -no-color
+
+  # 3. Valida e gera o Plano de Execução do Ambiente PROD (environments/prod)
+  - id: 'terraform-plan-prod'
+    name: 'hashicorp/terraform:1.8'
+    entrypoint: 'sh'
+    waitFor: ['terraform-plan-dev']
+    args:
+      - '-c'
+      - |
+        echo "=================================================================="
+        echo "[GITOPS-PR] Executando 'terraform plan' para AMBIENTE PROD (environments/prod)"
+        echo "=================================================================="
+        cd environments/prod
+        terraform init -input=false
+        terraform validate
+        terraform plan -input=false -no-color

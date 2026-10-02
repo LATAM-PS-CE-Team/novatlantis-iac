@@ -1,0 +1,15 @@
+# ==============================================================================
+# REPÚBLICA DIGITAL DE NOVATLANTIS — PROPRIETÁRIO E APROVADOR DE PROD (CODEOWNERS)
+# Organização: https://github.com/LATAM-PS-CE-Team
+# Repositório: novatlantis-iac
+#
+# Regra de Governança:
+# - Branch 'main' (Ambiente DEV): Merge livre (0 aprovações exigidas).
+# - Branch 'prod' (Ambiente PROD): Merge bloqueado até aprovação explícita de @pedrocalixto.
+# ==============================================================================
+
+*                               @pedrocalixto
+/modules/                       @pedrocalixto
+/environments/dev/              @pedrocalixto
+/environments/prod/             @pedrocalixto
+/cloudbuild/                    @pedrocalixto

@@ -1,0 +1,29 @@
+# ==============================================================================
+# REPÚBLICA DIGITAL DE NOVATLANTIS — ESTEIRA GITOPS DE APLICAÇÃO (TERRAFORM APPLY)
+# Repositório: LATAM-PS-CE-Team/novatlantis-iac
+# Acionamento:
+#   - Merge livre na branch 'main'               -> aplica environments/dev  (_TF_ENV=dev)
+#   - Merge aprovado (@pedrocalixto) em 'prod'   -> aplica environments/prod (_TF_ENV=prod)
+# ==============================================================================
+
+substitutions:
+  _TF_ENV: 'dev'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  - id: 'terraform-apply'
+    name: 'hashicorp/terraform:1.8'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        set -e
+        echo "=================================================================="
+        echo "[GITOPS-APPLY] Aplicando estado Terraform no ambiente: ${_TF_ENV}"
+        echo "=================================================================="
+        cd "environments/${_TF_ENV}"
+        terraform init -input=false
+        terraform validate
+        terraform apply -input=false -auto-approve
