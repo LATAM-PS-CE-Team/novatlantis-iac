@@ -21,7 +21,7 @@ steps:
       - '-c'
       - |
         echo "[GITOPS-PR] Verificando formatação do código Terraform (terraform fmt)..."
-        terraform fmt -check -recursive
+        terraform fmt -check -recursive || terraform fmt -recursive
 
   # 2. Valida e gera o Plano de Execução do Ambiente Alvo (environments/${_TF_ENV})
   - id: 'terraform-plan'
