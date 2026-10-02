@@ -202,6 +202,36 @@ resource "google_compute_url_map" "novatlantis_url_map" {
     path_matcher = "backstage-matcher"
   }
 
+  host_rule {
+    hosts        = ["tj.${var.domain}"]
+    path_matcher = "tj-matcher"
+  }
+
+  host_rule {
+    hosts        = ["nid.${var.domain}"]
+    path_matcher = "nid-matcher"
+  }
+
+  host_rule {
+    hosts        = ["311.${var.domain}"]
+    path_matcher = "s311-matcher"
+  }
+
+  host_rule {
+    hosts        = ["911.${var.domain}"]
+    path_matcher = "s911-matcher"
+  }
+
+  host_rule {
+    hosts        = ["health.${var.domain}"]
+    path_matcher = "health-matcher"
+  }
+
+  host_rule {
+    hosts        = ["edu.${var.domain}"]
+    path_matcher = "edu-matcher"
+  }
+
   path_matcher {
     name            = "landing-matcher"
     default_service = google_compute_backend_service.microservices_backends["landing-portal"].id
@@ -216,6 +246,52 @@ resource "google_compute_url_map" "novatlantis_url_map" {
     name            = "backstage-matcher"
     default_service = google_compute_backend_service.microservices_backends["gov-backstage"].id
   }
+
+  path_matcher {
+    name            = "tj-matcher"
+    default_service = google_compute_backend_service.microservices_backends["justice-court-tj"].id
+  }
+
+  path_matcher {
+    name            = "nid-matcher"
+    default_service = google_compute_backend_service.microservices_backends["identity-nid"].id
+  }
+
+  path_matcher {
+    name            = "s311-matcher"
+    default_service = google_compute_backend_service.microservices_backends["services-311"].id
+  }
+
+  path_matcher {
+    name            = "s911-matcher"
+    default_service = google_compute_backend_service.microservices_backends["emergency-911"].id
+  }
+
+  path_matcher {
+    name            = "health-matcher"
+    default_service = google_compute_backend_service.microservices_backends["health-telemed"].id
+  }
+
+  path_matcher {
+    name            = "edu-matcher"
+    default_service = google_compute_backend_service.microservices_backends["education-learn"].id
+  }
+}
+
+resource "google_compute_target_http_proxy" "novatlantis_http_proxy" {
+  name    = "novatlantis-${var.environment}-http-proxy"
+  project = var.project_id
+  url_map = google_compute_url_map.novatlantis_url_map.id
+}
+
+resource "google_compute_global_forwarding_rule" "novatlantis_http_forwarding_rule" {
+  name                  = "novatlantis-${var.environment}-http-fw-rule"
+  project               = var.project_id
+  ip_protocol           = "TCP"
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+  port_range            = "80"
+  target                = google_compute_target_http_proxy.novatlantis_http_proxy.id
+  ip_address            = google_compute_global_address.lb_ipv4.id
 }
 
 resource "google_compute_target_https_proxy" "novatlantis_https_proxy" {
