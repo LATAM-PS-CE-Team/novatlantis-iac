@@ -2,8 +2,8 @@
 # REPÚBLICA DIGITAL DE NOVATLANTIS — ESTEIRA GITOPS DE VALIDAÇÃO (TERRAFORM PLAN)
 # Repositório: LATAM-PS-CE-Team/novatlantis-iac
 # Acionamento:
-#   - PR contra 'dev'  (no projeto novatlantis-dev) -> planeja environments/dev  (_TF_ENV=dev)
-#   - PR contra 'main' (no projeto novatlantis-prd) -> planeja environments/prod (_TF_ENV=prod)
+#   - PR contra 'dev'  (no projeto novatlantis) -> planeja environments/dev  (_TF_ENV=dev)
+#   - PR contra 'main' (no projeto novatlantis) -> planeja environments/prod (_TF_ENV=prod)
 # ==============================================================================
 
 substitutions:

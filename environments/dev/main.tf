@@ -48,12 +48,6 @@ variable "enable_alloydb_cluster" {
   description = "Habilita provisionamento de cluster AlloyDB dedicado (os microsserviços possuem engine híbrido SQLite + AlloyDB)"
 }
 
-variable "enable_cloudbuild_github_app_triggers" {
-  type        = bool
-  default     = false
-  description = "Habilita gatilhos nativos Cloud Build GitHub App (GitHub Actions via WIF já dispara o Cloud Build)"
-}
-
 provider "google" {
   project = var.project_id
   region  = var.region
@@ -106,17 +100,6 @@ module "edge_lb_armor_dev" {
   environment   = "dev"
   domain        = var.domain
   service_names = module.cloud_run_dev.service_names
-}
-
-module "cicd_triggers_dev" {
-  count         = var.enable_cloudbuild_github_app_triggers ? 1 : 0
-  source        = "../../modules/cicd-triggers"
-  project_id    = var.project_id
-  region        = var.region
-  environment   = "dev"
-  target_branch = "dev"
-  github_owner  = var.github_owner
-  cicd_sa_id    = "projects/${var.project_id}/serviceAccounts/novatlantis-cicd-deployer@${var.project_id}.iam.gserviceaccount.com"
 }
 
 output "dev_service_urls" {
