@@ -35,7 +35,7 @@ resource "google_compute_network" "sovereign_vpc" {
 }
 
 resource "google_compute_subnetwork" "primary_subnet" {
-  name                     = "novatlantis-${var.region}"
+  name                     = "${var.vpc_name}-${var.region}"
   project                  = var.project_id
   region                   = var.region
   network                  = google_compute_network.sovereign_vpc.id

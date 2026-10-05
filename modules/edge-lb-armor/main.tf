@@ -134,7 +134,7 @@ resource "google_compute_security_policy" "novatlantis_waf" {
 }
 
 resource "google_compute_managed_ssl_certificate" "novatlantis_tls" {
-  name    = var.environment == "dev" ? "novatlantis-dev-managed-ssl-cert-v2" : "novatlantis-${var.environment}-managed-ssl-cert"
+  name    = "novatlantis-${var.environment}-managed-ssl-cert"
   project = var.project_id
 
   lifecycle {
@@ -152,7 +152,11 @@ resource "google_compute_managed_ssl_certificate" "novatlantis_tls" {
       "911.${var.domain}",
       "health.${var.domain}",
       "edu.${var.domain}",
-      "tj.${var.domain}"
+      "tj.${var.domain}",
+      "multaexec.${var.domain}",
+      "vigia.${var.domain}",
+      "geo.${var.domain}",
+      "detran.${var.domain}"
     ]
   }
 }
@@ -192,7 +196,13 @@ resource "google_compute_url_map" "novatlantis_url_map" {
   default_service = google_compute_backend_service.microservices_backends["landing-portal"].id
 
   host_rule {
-    hosts        = [var.domain]
+    hosts = [
+      var.domain,
+      "multaexec.${var.domain}",
+      "vigia.${var.domain}",
+      "geo.${var.domain}",
+      "detran.${var.domain}"
+    ]
     path_matcher = "landing-matcher"
   }
 

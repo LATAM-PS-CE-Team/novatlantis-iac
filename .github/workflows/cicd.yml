@@ -20,19 +20,16 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Resolve Environment & WIF Parameters
+      - name: Resolve Environment & WIF Parameters (Project novatlantis)
         id: env_cfg
         run: |
+          echo "project_id=novatlantis" >> "$GITHUB_OUTPUT"
+          echo "wif_provider=projects/1054221034062/locations/global/workloadIdentityPools/github-latam-ps-ce-pool/providers/github-oidc-provider" >> "$GITHUB_OUTPUT"
+          echo "service_account=novatlantis-cicd-deployer@novatlantis.iam.gserviceaccount.com" >> "$GITHUB_OUTPUT"
           if [ "${IS_PROD}" = "true" ]; then
-            echo "project_id=novatlantis-prd" >> "$GITHUB_OUTPUT"
             echo "tf_env=prod" >> "$GITHUB_OUTPUT"
-            echo "wif_provider=projects/364434027894/locations/global/workloadIdentityPools/github-latam-ps-ce-pool/providers/github-oidc-provider" >> "$GITHUB_OUTPUT"
-            echo "service_account=novatlantis-cicd-deployer@novatlantis-prd.iam.gserviceaccount.com" >> "$GITHUB_OUTPUT"
           else
-            echo "project_id=novatlantis-dev" >> "$GITHUB_OUTPUT"
             echo "tf_env=dev" >> "$GITHUB_OUTPUT"
-            echo "wif_provider=projects/927013504695/locations/global/workloadIdentityPools/github-latam-ps-ce-pool/providers/github-oidc-provider" >> "$GITHUB_OUTPUT"
-            echo "service_account=novatlantis-cicd-deployer@novatlantis-dev.iam.gserviceaccount.com" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Authenticate to Google Cloud via Keyless WIF
