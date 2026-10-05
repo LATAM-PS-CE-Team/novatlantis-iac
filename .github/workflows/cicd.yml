@@ -1,0 +1,61 @@
+name: Novatlantis IaC GitOps (Keyless WIF + Cloud Build)
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  terraform-gitops:
+    runs-on: ubuntu-latest
+    env:
+      IS_PROD: ${{ (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name != 'pull_request' && github.ref_name == 'main') }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Resolve Environment & WIF Parameters
+        id: env_cfg
+        run: |
+          if [ "${IS_PROD}" = "true" ]; then
+            echo "project_id=novatlantis-prd" >> "$GITHUB_OUTPUT"
+            echo "tf_env=prod" >> "$GITHUB_OUTPUT"
+            echo "wif_provider=projects/364434027894/locations/global/workloadIdentityPools/github-latam-ps-ce-pool/providers/github-oidc-provider" >> "$GITHUB_OUTPUT"
+            echo "service_account=novatlantis-cicd-deployer@novatlantis-prd.iam.gserviceaccount.com" >> "$GITHUB_OUTPUT"
+          else
+            echo "project_id=novatlantis-dev" >> "$GITHUB_OUTPUT"
+            echo "tf_env=dev" >> "$GITHUB_OUTPUT"
+            echo "wif_provider=projects/927013504695/locations/global/workloadIdentityPools/github-latam-ps-ce-pool/providers/github-oidc-provider" >> "$GITHUB_OUTPUT"
+            echo "service_account=novatlantis-cicd-deployer@novatlantis-dev.iam.gserviceaccount.com" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Authenticate to Google Cloud via Keyless WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ steps.env_cfg.outputs.wif_provider }}
+          service_account: ${{ steps.env_cfg.outputs.service_account }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run Terraform Plan on Pull Request (Cloud Build)
+        if: github.event_name == 'pull_request'
+        run: |
+          gcloud builds submit . \
+            --config=cloudbuild/cloudbuild-tf-plan.yaml \
+            --substitutions=_TF_ENV=${{ steps.env_cfg.outputs.tf_env }} \
+            --project=${{ steps.env_cfg.outputs.project_id }}
+
+      - name: Run Terraform Apply on Merge/Push (Cloud Build)
+        if: github.event_name != 'pull_request'
+        run: |
+          gcloud builds submit . \
+            --config=cloudbuild/cloudbuild-tf-apply.yaml \
+            --substitutions=_TF_ENV=${{ steps.env_cfg.outputs.tf_env }} \
+            --project=${{ steps.env_cfg.outputs.project_id }}

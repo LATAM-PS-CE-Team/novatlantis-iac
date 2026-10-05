@@ -57,7 +57,8 @@ variable "services" {
     "services-311",
     "emergency-911",
     "health-telemed",
-    "education-learn"
+    "education-learn",
+    "justice-court-tj"
   ]
 }
 
@@ -77,7 +78,8 @@ resource "google_cloud_run_v2_service" "microservices" {
     }
 
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.ar_repo_name}/${each.value}:${var.environment}-latest"
+      # Imagem inicial de bootstrap; atualizada continuamente pelo pipeline de CD (novatlantis-app)
+      image = "us-docker.pkg.dev/cloudrun/container/hello"
 
       resources {
         limits = {
@@ -131,6 +133,21 @@ resource "google_cloud_run_v2_service" "microservices" {
       client_version
     ]
   }
+}
+
+variable "enable_public_invoker_iam" {
+  type        = bool
+  default     = false
+  description = "Aplica roles/run.invoker para allUsers via Terraform (ou via gcloud run deploy --no-invoker-iam-check)"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "public_invoker" {
+  for_each = var.enable_public_invoker_iam ? google_cloud_run_v2_service.microservices : {}
+  project  = var.project_id
+  location = var.region
+  name     = each.value.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
 }
 
 output "service_urls" {

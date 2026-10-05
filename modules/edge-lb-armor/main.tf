@@ -13,20 +13,35 @@ variable "region" {
   default     = "us-central1"
 }
 
+variable "environment" {
+  type        = string
+  default     = "prod"
+  description = "Ambiente ('dev' ou 'prod')"
+}
+
 variable "domain" {
   type        = string
-  default     = "novatlantis.gov.cloud"
+  default     = "gov.novatlantis.cloud"
+  description = "Domínio principal do ambiente (gov.novatlantis.cloud em prod, dev.gov.novatlantis.cloud em dev)"
 }
 
 variable "service_names" {
   type        = map(string)
-  description = "Mapa (chave -> nome do serviço Cloud Run de prod) para os Serverless NEGs"
+  description = "Mapa (chave -> nome do serviço Cloud Run) para os Serverless NEGs"
+}
+
+resource "google_compute_global_address" "lb_ipv4" {
+  name         = "novatlantis-${var.environment}-lb-ipv4"
+  project      = var.project_id
+  address_type = "EXTERNAL"
+  ip_version   = "IPV4"
+  description  = "IP Global Anycast para ${var.domain} (${var.environment})"
 }
 
 resource "google_compute_security_policy" "novatlantis_waf" {
-  name        = "novatlantis-owasp-waf-policy"
+  name        = "novatlantis-${var.environment}-owasp-waf-policy"
   project     = var.project_id
-  description = "Cloud Armor WAF — Proteção OWASP Top 10 e Rate Limiting Anti-DDoS da República Digital de Novatlantis"
+  description = "Cloud Armor WAF — Proteção OWASP Top 10 e Rate Limiting Anti-DDoS da República Digital de Novatlantis (${var.environment})"
 
   rule {
     action   = "rate_based_ban"
@@ -119,26 +134,28 @@ resource "google_compute_security_policy" "novatlantis_waf" {
 }
 
 resource "google_compute_managed_ssl_certificate" "novatlantis_tls" {
-  name    = "novatlantis-managed-ssl-cert"
+  name    = "novatlantis-${var.environment}-managed-ssl-cert"
   project = var.project_id
 
   managed {
     domains = [
       var.domain,
       "portal.${var.domain}",
+      "cidadao.${var.domain}",
       "backstage.${var.domain}",
       "nid.${var.domain}",
       "311.${var.domain}",
       "911.${var.domain}",
       "health.${var.domain}",
-      "edu.${var.domain}"
+      "edu.${var.domain}",
+      "tj.${var.domain}"
     ]
   }
 }
 
 resource "google_compute_region_network_endpoint_group" "serverless_negs" {
   for_each              = var.service_names
-  name                  = "neg-novatlantis-prod-${each.key}"
+  name                  = "neg-novatlantis-${var.environment}-${each.key}"
   project               = var.project_id
   region                = var.region
   network_endpoint_type = "SERVERLESS"
@@ -150,7 +167,7 @@ resource "google_compute_region_network_endpoint_group" "serverless_negs" {
 
 resource "google_compute_backend_service" "microservices_backends" {
   for_each              = var.service_names
-  name                  = "be-novatlantis-prod-${each.key}"
+  name                  = "be-novatlantis-${var.environment}-${each.key}"
   project               = var.project_id
   load_balancing_scheme = "EXTERNAL_MANAGED"
   protocol              = "HTTP"
@@ -165,10 +182,152 @@ resource "google_compute_backend_service" "microservices_backends" {
   }
 }
 
+resource "google_compute_url_map" "novatlantis_url_map" {
+  name            = "novatlantis-${var.environment}-url-map"
+  project         = var.project_id
+  default_service = google_compute_backend_service.microservices_backends["landing-portal"].id
+
+  host_rule {
+    hosts        = [var.domain]
+    path_matcher = "landing-matcher"
+  }
+
+  host_rule {
+    hosts        = ["portal.${var.domain}", "cidadao.${var.domain}"]
+    path_matcher = "citizen-matcher"
+  }
+
+  host_rule {
+    hosts        = ["backstage.${var.domain}"]
+    path_matcher = "backstage-matcher"
+  }
+
+  host_rule {
+    hosts        = ["tj.${var.domain}"]
+    path_matcher = "tj-matcher"
+  }
+
+  host_rule {
+    hosts        = ["nid.${var.domain}"]
+    path_matcher = "nid-matcher"
+  }
+
+  host_rule {
+    hosts        = ["311.${var.domain}"]
+    path_matcher = "s311-matcher"
+  }
+
+  host_rule {
+    hosts        = ["911.${var.domain}"]
+    path_matcher = "s911-matcher"
+  }
+
+  host_rule {
+    hosts        = ["health.${var.domain}"]
+    path_matcher = "health-matcher"
+  }
+
+  host_rule {
+    hosts        = ["edu.${var.domain}"]
+    path_matcher = "edu-matcher"
+  }
+
+  path_matcher {
+    name            = "landing-matcher"
+    default_service = google_compute_backend_service.microservices_backends["landing-portal"].id
+  }
+
+  path_matcher {
+    name            = "citizen-matcher"
+    default_service = google_compute_backend_service.microservices_backends["citizen-portal"].id
+  }
+
+  path_matcher {
+    name            = "backstage-matcher"
+    default_service = google_compute_backend_service.microservices_backends["gov-backstage"].id
+  }
+
+  path_matcher {
+    name            = "tj-matcher"
+    default_service = google_compute_backend_service.microservices_backends["justice-court-tj"].id
+  }
+
+  path_matcher {
+    name            = "nid-matcher"
+    default_service = google_compute_backend_service.microservices_backends["identity-nid"].id
+  }
+
+  path_matcher {
+    name            = "s311-matcher"
+    default_service = google_compute_backend_service.microservices_backends["services-311"].id
+  }
+
+  path_matcher {
+    name            = "s911-matcher"
+    default_service = google_compute_backend_service.microservices_backends["emergency-911"].id
+  }
+
+  path_matcher {
+    name            = "health-matcher"
+    default_service = google_compute_backend_service.microservices_backends["health-telemed"].id
+  }
+
+  path_matcher {
+    name            = "edu-matcher"
+    default_service = google_compute_backend_service.microservices_backends["education-learn"].id
+  }
+}
+
+resource "google_compute_target_http_proxy" "novatlantis_http_proxy" {
+  name    = "novatlantis-${var.environment}-http-proxy"
+  project = var.project_id
+  url_map = google_compute_url_map.novatlantis_url_map.id
+}
+
+resource "google_compute_global_forwarding_rule" "novatlantis_http_forwarding_rule" {
+  name                  = "novatlantis-${var.environment}-http-fw-rule"
+  project               = var.project_id
+  ip_protocol           = "TCP"
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+  port_range            = "80"
+  target                = google_compute_target_http_proxy.novatlantis_http_proxy.id
+  ip_address            = google_compute_global_address.lb_ipv4.id
+}
+
+resource "google_compute_target_https_proxy" "novatlantis_https_proxy" {
+  name             = "novatlantis-${var.environment}-https-proxy"
+  project          = var.project_id
+  url_map          = google_compute_url_map.novatlantis_url_map.id
+  ssl_certificates = [google_compute_managed_ssl_certificate.novatlantis_tls.id]
+}
+
+resource "google_compute_global_forwarding_rule" "novatlantis_https_forwarding_rule" {
+  name                  = "novatlantis-${var.environment}-https-fw-rule"
+  project               = var.project_id
+  ip_protocol           = "TCP"
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+  port_range            = "443"
+  target                = google_compute_target_https_proxy.novatlantis_https_proxy.id
+  ip_address            = google_compute_global_address.lb_ipv4.id
+}
+
+output "lb_ip_address" {
+  value       = google_compute_global_address.lb_ipv4.address
+  description = "IP Público Global Anycast do Load Balancer para apontamento DNS no GoDaddy"
+}
+
 output "waf_policy_name" {
   value = google_compute_security_policy.novatlantis_waf.name
 }
 
 output "managed_ssl_cert_name" {
   value = google_compute_managed_ssl_certificate.novatlantis_tls.name
+}
+
+output "custom_domain_urls" {
+  value = {
+    home_landing_portal = "https://${var.domain}"
+    citizen_portal      = "https://portal.${var.domain}"
+    gov_backstage       = "https://backstage.${var.domain}"
+  }
 }

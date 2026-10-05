@@ -34,12 +34,24 @@ variable "region" {
 
 variable "domain" {
   type    = string
-  default = "novatlantis.gov.cloud"
+  default = "gov.novatlantis.cloud"
 }
 
 variable "github_owner" {
   type    = string
   default = "LATAM-PS-CE-Team"
+}
+
+variable "enable_alloydb_cluster" {
+  type        = bool
+  default     = false
+  description = "Habilita provisionamento de cluster AlloyDB dedicado"
+}
+
+variable "enable_cloudbuild_github_app_triggers" {
+  type        = bool
+  default     = false
+  description = "Habilita gatilhos nativos Cloud Build GitHub App"
 }
 
 provider "google" {
@@ -54,6 +66,7 @@ module "networking" {
 }
 
 module "database_alloydb" {
+  count      = var.enable_alloydb_cluster ? 1 : 0
   source     = "../../modules/database-alloydb"
   project_id = var.project_id
   region     = var.region
@@ -83,11 +96,18 @@ module "edge_lb_armor" {
   source        = "../../modules/edge-lb-armor"
   project_id    = var.project_id
   region        = var.region
+  environment   = "prod"
   domain        = var.domain
   service_names = module.cloud_run_prod.service_names
 }
 
+import {
+  to = module.edge_lb_armor.google_compute_global_address.lb_ipv4
+  id = "projects/novatlantis-prd/global/addresses/novatlantis-prod-lb-ipv4"
+}
+
 module "cicd_triggers_prod" {
+  count         = var.enable_cloudbuild_github_app_triggers ? 1 : 0
   source        = "../../modules/cicd-triggers"
   project_id    = var.project_id
   region        = var.region
@@ -99,10 +119,20 @@ module "cicd_triggers_prod" {
 
 output "prod_service_urls" {
   value       = module.cloud_run_prod.service_urls
-  description = "URLs oficiais do Ambiente PROD dos 8 microsserviços Cloud Run no projeto novatlantis-prd"
+  description = "URLs oficiais do Ambiente PROD dos 9 microsserviços Cloud Run no projeto novatlantis-prd"
+}
+
+output "prod_lb_ip_address" {
+  value       = module.edge_lb_armor.lb_ip_address
+  description = "IP Global Anycast do Load Balancer PROD (apontar gov.novatlantis.cloud e *.gov.novatlantis.cloud no GoDaddy)"
+}
+
+output "prod_custom_domain_urls" {
+  value       = module.edge_lb_armor.custom_domain_urls
+  description = "URLs customizadas do Ambiente PROD (gov.novatlantis.cloud)"
 }
 
 output "alloydb_private_ip" {
-  value       = module.database_alloydb.primary_instance_ip
+  value       = var.enable_alloydb_cluster ? module.database_alloydb[0].primary_instance_ip : "HYBRID_SQLITE_ACTIVE"
   description = "IP Privado (PSA) da instância primária AlloyDB"
 }

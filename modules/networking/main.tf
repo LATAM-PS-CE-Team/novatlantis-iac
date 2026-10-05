@@ -43,7 +43,14 @@ resource "google_compute_subnetwork" "primary_subnet" {
   private_ip_google_access = true
 }
 
+variable "enable_psa" {
+  type        = bool
+  default     = false
+  description = "Habilita Private Services Access (PSA) para AlloyDB"
+}
+
 resource "google_compute_global_address" "alloydb_psa_range" {
+  count         = var.enable_psa ? 1 : 0
   name          = "novatlantis-alloydb-psa"
   project       = var.project_id
   purpose       = "VPC_PEERING"
@@ -53,9 +60,10 @@ resource "google_compute_global_address" "alloydb_psa_range" {
 }
 
 resource "google_service_networking_connection" "private_vpc_connection" {
+  count                   = var.enable_psa ? 1 : 0
   network                 = google_compute_network.sovereign_vpc.id
   service                 = "servicenetworking.googleapis.com"
-  reserved_peering_ranges = [google_compute_global_address.alloydb_psa_range.name]
+  reserved_peering_ranges = [google_compute_global_address.alloydb_psa_range[0].name]
 }
 
 output "vpc_id" {
