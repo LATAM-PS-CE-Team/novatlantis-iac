@@ -134,7 +134,7 @@ resource "google_compute_security_policy" "novatlantis_waf" {
 }
 
 resource "google_compute_managed_ssl_certificate" "novatlantis_tls" {
-  name    = "novatlantis-${var.environment}-managed-ssl-cert"
+  name    = "novatlantis-${var.environment}-managed-ssl-cert-v2"
   project = var.project_id
 
   lifecycle {
