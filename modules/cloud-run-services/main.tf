@@ -1,5 +1,5 @@
 # ==============================================================================
-# MÓDULO TERRAFORM: 8 MICROSSERVIÇOS CLOUD RUN (AMBIENTES 'dev' E 'prod')
+# MÓDULO TERRAFORM: 9 MICROSSERVIÇOS CLOUD RUN (AMBIENTES 'dev' E 'prod')
 # Repositório: LATAM-PS-CE-Team/novatlantis-iac (modules/cloud-run-services)
 # Importante: O bloco lifecycle.ignore_changes ignora a imagem do container para
 #             que os deploys automáticos de novatlantis-app via Cloud Build não
@@ -154,12 +154,12 @@ output "service_urls" {
   value = {
     for k, svc in google_cloud_run_v2_service.microservices : k => svc.uri
   }
-  description = "Mapa de URLs dos 8 microsserviços Cloud Run"
+  description = "Mapa de URLs dos 9 microsserviços Cloud Run"
 }
 
 output "service_names" {
   value = {
     for k, svc in google_cloud_run_v2_service.microservices : k => svc.name
   }
-  description = "Mapa de nomes dos 8 microsserviços Cloud Run"
+  description = "Mapa de nomes dos 9 microsserviços Cloud Run"
 }

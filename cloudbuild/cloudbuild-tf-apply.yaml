@@ -2,8 +2,8 @@
 # REPÚBLICA DIGITAL DE NOVATLANTIS — ESTEIRA GITOPS DE APLICAÇÃO (TERRAFORM APPLY)
 # Repositório: LATAM-PS-CE-Team/novatlantis-iac
 # Acionamento:
-#   - Merge livre na branch 'dev'  (no projeto novatlantis-dev) -> aplica environments/dev  (_TF_ENV=dev)
-#   - Merge aprovado na branch 'main' (no projeto novatlantis-prd) -> aplica environments/prod (_TF_ENV=prod)
+#   - Merge livre na branch 'dev'  (no projeto novatlantis) -> aplica environments/dev  (_TF_ENV=dev)
+#   - Merge aprovado na branch 'main' (no projeto novatlantis) -> aplica environments/prod (_TF_ENV=prod)
 # ==============================================================================
 
 substitutions:
