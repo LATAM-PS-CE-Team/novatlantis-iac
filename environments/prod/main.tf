@@ -2,15 +2,15 @@
 # AMBIENTE PROD — REPÚBLICA DIGITAL DE NOVATLANTIS
 # Organização GitHub: https://github.com/LATAM-PS-CE-Team
 # Branch Alvo: main (Exige aprovação explícita de @pedrocalixto via CODEOWNERS)
-# Projeto GCP Dedicado: novatlantis-prd
-# Backend Remoto: gs://novatlantis-prd-tfstate/iac/prod (com State Locking)
+# Projeto GCP Unificado: novatlantis (1054221034062)
+# Backend Remoto: gs://novatlantis-tfstate/iac/prod (com State Locking)
 # ==============================================================================
 
 terraform {
   required_version = ">= 1.6.0"
 
   backend "gcs" {
-    bucket = "novatlantis-prd-tfstate"
+    bucket = "novatlantis-tfstate"
     prefix = "iac/prod"
   }
 
@@ -24,7 +24,7 @@ terraform {
 
 variable "project_id" {
   type    = string
-  default = "novatlantis-prd"
+  default = "novatlantis"
 }
 
 variable "region" {
@@ -60,9 +60,11 @@ provider "google" {
 }
 
 module "networking" {
-  source     = "../../modules/networking"
-  project_id = var.project_id
-  region     = var.region
+  source      = "../../modules/networking"
+  project_id  = var.project_id
+  region      = var.region
+  vpc_name    = "novatlantis-prod-vpc"
+  subnet_cidr = "10.20.0.0/20"
 }
 
 module "database_alloydb" {
@@ -75,10 +77,14 @@ module "database_alloydb" {
 }
 
 module "security_iam_secrets" {
-  source       = "../../modules/security-iam-secrets"
-  project_id   = var.project_id
-  region       = var.region
-  github_owner = var.github_owner
+  source             = "../../modules/security-iam-secrets"
+  project_id         = var.project_id
+  region             = var.region
+  github_owner       = var.github_owner
+  ar_repo_name       = "novatlantis-prod-gov-repo"
+  workload_sa_name   = "novatlantis-workload-sa"
+  create_workload_sa = false
+  jwt_secret_id      = "novatlantis-prod-jwt-authority"
 }
 
 module "cloud_run_prod" {
@@ -89,6 +95,7 @@ module "cloud_run_prod" {
   service_prefix    = "novatlantis-prod"
   workload_sa_email = module.security_iam_secrets.workload_sa_email
   jwt_secret_id     = module.security_iam_secrets.jwt_secret_id
+  ar_repo_name      = "novatlantis-prod-gov-repo"
   depends_on        = [module.security_iam_secrets]
 }
 
@@ -99,11 +106,6 @@ module "edge_lb_armor" {
   environment   = "prod"
   domain        = var.domain
   service_names = module.cloud_run_prod.service_names
-}
-
-import {
-  to = module.edge_lb_armor.google_compute_global_address.lb_ipv4
-  id = "projects/novatlantis-prd/global/addresses/novatlantis-prod-lb-ipv4"
 }
 
 module "cicd_triggers_prod" {
@@ -119,7 +121,7 @@ module "cicd_triggers_prod" {
 
 output "prod_service_urls" {
   value       = module.cloud_run_prod.service_urls
-  description = "URLs oficiais do Ambiente PROD dos 9 microsserviços Cloud Run no projeto novatlantis-prd"
+  description = "URLs oficiais do Ambiente PROD dos 9 microsserviços Cloud Run no projeto novatlantis"
 }
 
 output "prod_lb_ip_address" {

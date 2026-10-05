@@ -38,6 +38,12 @@ variable "cicd_sa_name" {
   description = "ID da Service Account dedicada ao CI/CD e GitOps"
 }
 
+variable "jwt_secret_id" {
+  type        = string
+  default     = "novatlantis-internal-jwt-authority"
+  description = "ID do segredo JWT no Secret Manager"
+}
+
 data "google_project" "current" {
   project_id = var.project_id
 }
@@ -61,7 +67,7 @@ resource "google_artifact_registry_repository" "gov_docker_repo" {
 
 resource "google_secret_manager_secret" "jwt_authority" {
   project   = var.project_id
-  secret_id = "novatlantis-internal-jwt-authority"
+  secret_id = var.jwt_secret_id
 
   replication {
     auto {}
@@ -71,17 +77,29 @@ resource "google_secret_manager_secret" "jwt_authority" {
     nation     = "novatlantis"
     managed_by = "terraform-gitops"
   }
+
+  provisioner "local-exec" {
+    command = "gcloud secrets versions list ${self.secret_id} --project=${var.project_id} --limit=1 --format='value(name)' | grep -q . || printf 'novatlantis-sovereign-jwt-authority-%s-2026' '${var.project_id}' | gcloud secrets versions add ${self.secret_id} --project=${var.project_id} --data-file=-"
+  }
 }
 
-resource "google_secret_manager_secret_version" "jwt_authority_v1" {
-  secret      = google_secret_manager_secret.jwt_authority.id
-  secret_data = "novatlantis-sovereign-jwt-authority-${var.project_id}-2026"
+variable "create_workload_sa" {
+  type        = bool
+  default     = false
+  description = "Se false, reutiliza a Service Account existente no projeto sem exigir resourcemanager.projects.setIamPolicy"
 }
 
 resource "google_service_account" "workload_sa" {
+  count        = var.create_workload_sa ? 1 : 0
   project      = var.project_id
   account_id   = var.workload_sa_name
   display_name = "Novatlantis Sovereign Microservices Workload Identity"
+}
+
+data "google_service_account" "existing_workload_sa" {
+  count      = var.create_workload_sa ? 0 : 1
+  project    = var.project_id
+  account_id = var.workload_sa_name
 }
 
 locals {
@@ -93,13 +111,14 @@ locals {
     "roles/aiplatform.user",
     "roles/run.invoker"
   ])
+  resolved_workload_sa_email = var.create_workload_sa ? google_service_account.workload_sa[0].email : data.google_service_account.existing_workload_sa[0].email
 }
 
 resource "google_project_iam_member" "workload_sa_bindings" {
-  for_each = local.workload_roles
+  for_each = var.create_workload_sa ? local.workload_roles : toset([])
   project  = var.project_id
   role     = each.value
-  member   = "serviceAccount:${google_service_account.workload_sa.email}"
+  member   = "serviceAccount:${local.resolved_workload_sa_email}"
 }
 
 # ------------------------------------------------------------------------------
@@ -116,7 +135,7 @@ output "artifact_registry_uri" {
 }
 
 output "workload_sa_email" {
-  value       = google_service_account.workload_sa.email
+  value       = local.resolved_workload_sa_email
   description = "E-mail da Service Account de execução dos microsserviços"
 }
 
@@ -133,5 +152,5 @@ output "wif_provider_name" {
 output "jwt_secret_id" {
   value       = google_secret_manager_secret.jwt_authority.secret_id
   description = "Nome do segredo JWT no Secret Manager"
-  depends_on  = [google_secret_manager_secret_version.jwt_authority_v1]
+  depends_on  = [google_secret_manager_secret.jwt_authority]
 }

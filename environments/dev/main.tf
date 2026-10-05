@@ -2,15 +2,15 @@
 # AMBIENTE DEV — REPÚBLICA DIGITAL DE NOVATLANTIS
 # Organização GitHub: https://github.com/LATAM-PS-CE-Team
 # Branch Alvo: dev (Merge livre sem necessidade de aprovação humana)
-# Projeto GCP Dedicado: novatlantis-dev
-# Backend Remoto: gs://novatlantis-dev-tfstate/iac/dev (com State Locking)
+# Projeto GCP Unificado: novatlantis (1054221034062)
+# Backend Remoto: gs://novatlantis-tfstate/iac/dev (com State Locking)
 # ==============================================================================
 
 terraform {
   required_version = ">= 1.6.0"
 
   backend "gcs" {
-    bucket = "novatlantis-dev-tfstate"
+    bucket = "novatlantis-tfstate"
     prefix = "iac/dev"
   }
 
@@ -24,7 +24,7 @@ terraform {
 
 variable "project_id" {
   type    = string
-  default = "novatlantis-dev"
+  default = "novatlantis"
 }
 
 variable "region" {
@@ -51,7 +51,7 @@ variable "enable_alloydb_cluster" {
 variable "enable_cloudbuild_github_app_triggers" {
   type        = bool
   default     = false
-  description = "Habilita gatilhos nativos Cloud Build GitHub App (requer vínculo OAuth prévio no console; GitHub Actions via WIF já dispara o Cloud Build)"
+  description = "Habilita gatilhos nativos Cloud Build GitHub App (GitHub Actions via WIF já dispara o Cloud Build)"
 }
 
 provider "google" {
@@ -60,9 +60,11 @@ provider "google" {
 }
 
 module "networking" {
-  source     = "../../modules/networking"
-  project_id = var.project_id
-  region     = var.region
+  source      = "../../modules/networking"
+  project_id  = var.project_id
+  region      = var.region
+  vpc_name    = "novatlantis-dev-vpc"
+  subnet_cidr = "10.10.0.0/20"
 }
 
 module "database_alloydb" {
@@ -75,10 +77,14 @@ module "database_alloydb" {
 }
 
 module "security_iam_secrets" {
-  source       = "../../modules/security-iam-secrets"
-  project_id   = var.project_id
-  region       = var.region
-  github_owner = var.github_owner
+  source             = "../../modules/security-iam-secrets"
+  project_id         = var.project_id
+  region             = var.region
+  github_owner       = var.github_owner
+  ar_repo_name       = "novatlantis-dev-gov-repo"
+  workload_sa_name   = "novatlantis-workload-sa"
+  create_workload_sa = false
+  jwt_secret_id      = "novatlantis-dev-jwt-authority"
 }
 
 module "cloud_run_dev" {
@@ -89,7 +95,7 @@ module "cloud_run_dev" {
   service_prefix    = "novatlantis-dev"
   workload_sa_email = module.security_iam_secrets.workload_sa_email
   jwt_secret_id     = module.security_iam_secrets.jwt_secret_id
-  ar_repo_name      = "novatlantis-gov-repo"
+  ar_repo_name      = "novatlantis-dev-gov-repo"
   depends_on        = [module.security_iam_secrets]
 }
 
@@ -115,7 +121,7 @@ module "cicd_triggers_dev" {
 
 output "dev_service_urls" {
   value       = module.cloud_run_dev.service_urls
-  description = "URLs do Ambiente DEV dos 9 microsserviços Cloud Run no projeto novatlantis-dev"
+  description = "URLs do Ambiente DEV dos 9 microsserviços Cloud Run no projeto novatlantis"
 }
 
 output "dev_lb_ip_address" {
