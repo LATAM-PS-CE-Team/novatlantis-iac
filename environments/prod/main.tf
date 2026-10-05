@@ -101,6 +101,11 @@ module "edge_lb_armor" {
   service_names = module.cloud_run_prod.service_names
 }
 
+import {
+  to = module.edge_lb_armor.google_compute_global_address.lb_ipv4
+  id = "projects/novatlantis-prd/global/addresses/novatlantis-prod-lb-ipv4"
+}
+
 module "cicd_triggers_prod" {
   count         = var.enable_cloudbuild_github_app_triggers ? 1 : 0
   source        = "../../modules/cicd-triggers"
